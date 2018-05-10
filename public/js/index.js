@@ -17,6 +17,7 @@ socket.on('newMessage', function (newmessage) {
         time: formattedTime
     });
     $("#messages").append(content);
+    scrollToBottom();
 });
 
 socket.on('newLocationMessage', function (newLocation) {
@@ -28,6 +29,7 @@ socket.on('newLocationMessage', function (newLocation) {
         time: formattedTime
     });
     $("#messages").append(content);
+    scrollToBottom();
 });
 
 $("#message-form").on("submit", function (event) {
@@ -62,3 +64,17 @@ locationButton.on('click', function (event) {
         alert('unable to fetch location!');
     });
 });
+
+function scrollToBottom(){
+    var messagesContainer = $("#messages");
+    var lastMessage = messagesContainer.children('li:last-child');
+    var clientHeight =  messagesContainer.prop('clientHeight');
+    var scrollTop = messagesContainer.prop('scrollTop');
+    var scrollHeight = messagesContainer.prop('scrollHeight');
+
+    var lastMessageHeight = lastMessage.innerHeight();
+    var prevMessageHeight = lastMessage.prev().innerHeight();
+    if(clientHeight+scrollTop+lastMessageHeight+prevMessageHeight>=scrollHeight){
+           messagesContainer.scrollTop(scrollHeight);
+    }
+}
