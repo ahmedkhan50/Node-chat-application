@@ -26,8 +26,8 @@ io.on('connection', (socket) => {
         // remove user from list if other room he had joined.
         users.removeUser(socket.id);
         // add user to list
-        users.addUser(socket.id,params.name,params.room);
-        io.to(params.room).emit('updateUserList',users.getUserList(params.room));
+        users.addUser(socket.id, params.name, params.room);
+        io.to(params.room).emit('updateUserList', users.getUserList(params.room));
         // socket.leave(params.room);
         // io.emit -> emits message to all users joined to server.->io.to(params.room).emit
         // socket.broadcast.emit -> sends notification to everyone except the one who joined.-> socket.broadcast.to(params.room).emit
@@ -42,20 +42,27 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createMessage', (message, callback) => {
-        io.emit('newMessage', generateMessage(message.from, message.text));
+        var user = users.getUser(socket.id);
+        if (user && isRealString(message.text)) {
+            io.to(user.room).emit('newMessage', generateMessage(user.name, message.text));
+        }
+
         callback();
     });
 
     socket.on('createLocationMessage', (coords) => {
-        io.emit('newLocationMessage', generateLocationMessage('admin', coords.latitude, coords.longitude));
+        var user = users.getUser(socket.id);
+        if (user) {
+            io.to(user.room).emit('newLocationMessage', generateLocationMessage(user.name, coords.latitude, coords.longitude));
+        }
     });
 
     socket.on('disconnect', () => {
-         var remUser = users.removeUser(socket.id);
-         if(remUser){
-             io.to(remUser.room).emit('updateUserList',users.getUserList(remUser.room));
-              io.to(remUser.room).emit('newMessage',generateMessage('From',`${remUser.name} has Left!`));
-         }
+        var remUser = users.removeUser(socket.id);
+        if (remUser) {
+            io.to(remUser.room).emit('updateUserList', users.getUserList(remUser.room));
+            io.to(remUser.room).emit('newMessage', generateMessage('From', `${remUser.name} has Left!`));
+        }
     });
 });
 

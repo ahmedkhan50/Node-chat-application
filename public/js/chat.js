@@ -53,7 +53,6 @@ $("#message-form").on("submit", function (event) {
     event.preventDefault();
     var messageTextBox = $(".chat__footer #message-form input[name='message']");
     socket.emit('createMessage', {
-        from: 'user',
         text: messageTextBox.val()
     }, function (message) {
         console.log('Got it..' + message);
