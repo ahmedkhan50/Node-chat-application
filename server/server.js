@@ -2,36 +2,60 @@ const path = require('path');
 const express = require('express');
 const socketIO = require('socket.io');
 const http = require('http');
-const {generateMessage,generateLocationMessage} = require('./utils/message');
+const {generateMessage, generateLocationMessage} = require('./utils/message');
+const {isRealString} = require('./utils/validation');
+const {Users} = require('./utils/users');
 const publicPath = path.join(__dirname, '../public');
 const port = process.env.PORT || 3000;
 var app = express();
 
 const server = http.createServer(app);
 const io = socketIO(server);
+const users = new Users();
 app.use(express.static(publicPath));
 
 
 io.on('connection', (socket) => {
     console.log('new user connected');
-    // notify the user who joined recently with welcome message! 
-    socket.emit('newMessage',generateMessage('Admin','Welcome to the chat app!!'));
 
-    // notify all other users other than who joined the chat by using socket.broadcast.emit
-    // socket.broadcast.emit will send to all users except the one who opened application.
-    socket.broadcast.emit('newMessage',generateMessage('admin','New User Joined!!'));
+    socket.on('join', (params, callback) => {
+        if (!isRealString(params.name) || !isRealString(params.room)) {
+            return callback('name and room name required');
+        }
+        socket.join(params.room);
+        // remove user from list if other room he had joined.
+        users.removeUser(socket.id);
+        // add user to list
+        users.addUser(socket.id,params.name,params.room);
+        io.to(params.room).emit('updateUserList',users.getUserList(params.room));
+        // socket.leave(params.room);
+        // io.emit -> emits message to all users joined to server.->io.to(params.room).emit
+        // socket.broadcast.emit -> sends notification to everyone except the one who joined.-> socket.broadcast.to(params.room).emit
+        // socket.emit -> emits notification only to user who currently joined.
 
-    socket.on('createMessage', (message,callback) => {
-        io.emit('newMessage',generateMessage(message.from,message.text));     
+        // notify the user who joined recently with welcome message! 
+        socket.emit('newMessage', generateMessage('Admin', 'Welcome to the chat app!!'));
+        // notify all other users other than who joined the chat by using socket.broadcast.emit
+        // socket.broadcast.emit will send to all users except the one who opened application.
+        socket.broadcast.to(params.room).emit('newMessage', generateMessage('admin', `${params.name} has joined.`));
         callback();
     });
 
-    socket.on('createLocationMessage',(coords)=>{
-        io.emit('newLocationMessage',generateLocationMessage('admin',coords.latitude, coords.longitude));  
+    socket.on('createMessage', (message, callback) => {
+        io.emit('newMessage', generateMessage(message.from, message.text));
+        callback();
+    });
+
+    socket.on('createLocationMessage', (coords) => {
+        io.emit('newLocationMessage', generateLocationMessage('admin', coords.latitude, coords.longitude));
     });
 
     socket.on('disconnect', () => {
-        console.log('client disconnected!!');
+         var remUser = users.removeUser(socket.id);
+         if(remUser){
+             io.to(remUser.room).emit('updateUserList',users.getUserList(remUser.room));
+              io.to(remUser.room).emit('newMessage',generateMessage('From',`${remUser.name} has Left!`));
+         }
     });
 });
 
