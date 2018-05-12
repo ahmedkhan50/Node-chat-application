@@ -16,18 +16,18 @@ app.use(express.static(publicPath));
 
 
 io.on('connection', (socket) => {
-    console.log('new user connected');
 
     socket.on('join', (params, callback) => {
         if (!isRealString(params.name) || !isRealString(params.room)) {
             return callback('name and room name required');
         }
-        socket.join(params.room);
+        const roomName = params.room.toLowerCase();
+        socket.join(roomName);
         // remove user from list if other room he had joined.
         users.removeUser(socket.id);
         // add user to list
-        users.addUser(socket.id, params.name, params.room);
-        io.to(params.room).emit('updateUserList', users.getUserList(params.room));
+        users.addUser(socket.id, params.name, roomName);
+        io.to(roomName).emit('updateUserList', users.getUserList(roomName));
         // socket.leave(params.room);
         // io.emit -> emits message to all users joined to server.->io.to(params.room).emit
         // socket.broadcast.emit -> sends notification to everyone except the one who joined.-> socket.broadcast.to(params.room).emit
@@ -37,7 +37,7 @@ io.on('connection', (socket) => {
         socket.emit('newMessage', generateMessage('Admin', 'Welcome to the chat app!!'));
         // notify all other users other than who joined the chat by using socket.broadcast.emit
         // socket.broadcast.emit will send to all users except the one who opened application.
-        socket.broadcast.to(params.room).emit('newMessage', generateMessage('admin', `${params.name} has joined.`));
+        socket.broadcast.to(roomName).emit('newMessage', generateMessage('admin', `${params.name} has joined.`));
         callback();
     });
 
@@ -58,6 +58,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
+        // on disconnection please remove user form the list.
         var remUser = users.removeUser(socket.id);
         if (remUser) {
             io.to(remUser.room).emit('updateUserList', users.getUserList(remUser.room));
